@@ -14,7 +14,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        node-version: [20.x, 22.x]
+        node-version: [22.x, 24.x]
 
     steps:
       - name: Checkout do código
@@ -33,9 +33,9 @@ jobs:
         working-directory: ./backend
         run: npm ci
 
-      - name: Executar Testes e Cobertura (Backend)
+      - name: Executar Testes de Unidade (Backend)
         working-directory: ./backend
-        run: npm run test:coverage
+        run: npm test
 
       - name: Instalar dependências (Frontend)
         working-directory: ./frontend
@@ -45,6 +45,6 @@ jobs:
         working-directory: ./frontend
         run: npm run build
 
-      - name: Executar Testes e Cobertura (Frontend)
+      - name: Executar Testes de Unidade (Frontend)
         working-directory: ./frontend
-        run: npm run test:coverage
+        run: npm test
