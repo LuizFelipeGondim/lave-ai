@@ -67,7 +67,7 @@ export default function LoginPage({ onLogin }) {
               userData = data.user
             }
           } catch {
-            // Resposta sem corpo JSON usa os dados mínimos da sessão
+            userData = { name: trimmedEmail.split('@')[0], email: trimmedEmail, role: 'user' }
           }
           onLogin(userData)
         } else {
@@ -76,7 +76,7 @@ export default function LoginPage({ onLogin }) {
             const data = await response.json()
             if (data?.message) message = data.message
           } catch {
-            // Mantém mensagem padrão
+            message = 'E-mail ou senha incorretos. Confira os dados e tente novamente.'
           }
           setError(message)
         }
@@ -102,7 +102,7 @@ export default function LoginPage({ onLogin }) {
             const data = await response.json()
             if (data?.message) message = data.message
           } catch {
-            // Mantém mensagem padrão
+            message = 'Não foi possível criar a conta. Verifique os dados informados.'
           }
           setError(message)
         }
@@ -132,29 +132,6 @@ export default function LoginPage({ onLogin }) {
             <p className="auth-panel__description">
               Acompanhe lavadoras e secadoras em tempo real, reserve o próximo horário livre em sequência e receba avisos quando sua máquina terminar.
             </p>
-          </div>
-        </div>
-
-        <div className="auth-timetable" aria-hidden="true">
-          <div className="auth-timetable__header">
-            <span>Sequência sem intervalos vazios</span>
-            <span className="tabular-nums">Hoje</span>
-          </div>
-          <div className="auth-timetable__slot">
-            <span className="auth-timetable__time tabular-nums">14:00 – 15:00</span>
-            <div className="auth-timetable__meta">
-              <strong>Lavadora A</strong>
-              <span>Roupa pesada · 60 min</span>
-            </div>
-            <span className="auth-timetable__dot auth-timetable__dot--active" />
-          </div>
-          <div className="auth-timetable__slot">
-            <span className="auth-timetable__time tabular-nums">15:00 – 15:45</span>
-            <div className="auth-timetable__meta">
-              <strong>Secadora 01</strong>
-              <span>Secagem rápida · 45 min</span>
-            </div>
-            <span className="auth-timetable__dot" />
           </div>
         </div>
       </aside>
