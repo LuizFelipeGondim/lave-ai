@@ -2,17 +2,11 @@ import { useState } from 'react'
 import { API_URL } from './config/api'
 import Header from './components/Header'
 import LoginPage from './pages/LoginPage'
+import LaundryOverview from './pages/LaundryOverview'
+import SchedulePage from './pages/SchedulePage'
 import './App.css'
 
-const PAGE_TITLES = {
-  overview: {
-    title: 'Painel da lavanderia',
-    description: 'Acompanhe em tempo real o estado das lavadoras e secadoras.',
-  },
-  schedule: {
-    title: 'Agendar horário',
-    description: 'Escolha a máquina e o ciclo para entrar no próximo horário livre da fila.',
-  },
+const PLACEHOLDER_PAGES = {
   history: {
     title: 'Histórico',
     description: 'Consulte agendamentos anteriores e acompanhe alterações registradas.',
@@ -26,6 +20,7 @@ const PAGE_TITLES = {
 export default function App() {
   const [user, setUser] = useState(null)
   const [page, setPage] = useState('overview')
+  const [selectedMachineId, setSelectedMachineId] = useState(null)
 
   const handleLogin = (loggedUser) => {
     setUser(loggedUser)
@@ -36,7 +31,15 @@ export default function App() {
     if (nextPage === 'machines' && user?.role !== 'admin') {
       return
     }
+    if (nextPage !== 'schedule') {
+      setSelectedMachineId(null)
+    }
     setPage(nextPage)
+  }
+
+  const handleOpenSchedule = (machineId) => {
+    setSelectedMachineId(machineId || null)
+    setPage('schedule')
   }
 
   const handleLogout = async () => {
@@ -45,11 +48,10 @@ export default function App() {
         method: 'POST',
         credentials: 'include',
       })
-    } catch {
-      // Encerra a sessão local mesmo se a API estiver indisponível
     } finally {
       setUser(null)
       setPage('overview')
+      setSelectedMachineId(null)
     }
   }
 
@@ -58,7 +60,6 @@ export default function App() {
   }
 
   const activePage = page === 'machines' && user.role !== 'admin' ? 'overview' : page
-  const pageInfo = PAGE_TITLES[activePage]
 
   return (
     <div className="app-shell">
@@ -71,10 +72,20 @@ export default function App() {
 
       <main className="app-main">
         <div className="app-container">
-          <div className="page-head">
-            <h1 className="page-head__title">{pageInfo.title}</h1>
-            <p className="page-head__subtitle">{pageInfo.description}</p>
-          </div>
+          {activePage === 'overview' && (
+            <LaundryOverview user={user} onOpenSchedule={handleOpenSchedule} />
+          )}
+
+          {activePage === 'schedule' && (
+            <SchedulePage user={user} initialMachineId={selectedMachineId} />
+          )}
+
+          {activePage !== 'overview' && activePage !== 'schedule' && (
+            <div className="page-head">
+              <h1 className="page-head__title">{PLACEHOLDER_PAGES[activePage].title}</h1>
+              <p className="page-head__subtitle">{PLACEHOLDER_PAGES[activePage].description}</p>
+            </div>
+          )}
         </div>
       </main>
     </div>
