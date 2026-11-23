@@ -60,6 +60,27 @@ export const mockCycles = [
   { id: 7, machine_id: 3, name: 'Secagem completa', duration_minutes: 60 },
 ]
 
+export const mockMachineLogs = [
+  {
+    id: 1,
+    machine_id: 4,
+    admin_id: 'admin-1',
+    machine_name: 'Secadora 02',
+    action: 'status_changed',
+    details: 'Status alterado de available para maintenance',
+    created_at: '2026-11-22T11:30:00.000Z',
+  },
+  {
+    id: 2,
+    machine_id: 2,
+    admin_id: 'admin-1',
+    machine_name: 'Lavadora B',
+    action: 'cycle_added',
+    details: 'Ciclo Roupa pesada (60 min) adicionado',
+    created_at: '2026-11-22T10:00:00.000Z',
+  },
+]
+
 export function buildDefaultBookings(baseNow = new Date()) {
   const nowMs = baseNow.getTime()
   const min = 60 * 1000
@@ -158,10 +179,60 @@ export const handlers = [
     return HttpResponse.json(mockMachines)
   }),
 
+  http.post(`${API_URL}/machines`, async ({ request }) => {
+    const body = await request.json()
+    return HttpResponse.json(
+      {
+        id: 99,
+        name: body.name,
+        type: body.type,
+        status: body.status || 'available',
+      },
+      { status: 201 }
+    )
+  }),
+
+  http.put(`${API_URL}/machines/:id`, async ({ params, request }) => {
+    const body = await request.json()
+    return HttpResponse.json({
+      id: Number(params.id),
+      ...body,
+    })
+  }),
+
+  http.patch(`${API_URL}/machines/:id/status`, async ({ params, request }) => {
+    const body = await request.json()
+    return HttpResponse.json({
+      id: Number(params.id),
+      status: body.status,
+    })
+  }),
+
+  http.delete(`${API_URL}/machines/:id`, () => {
+    return new HttpResponse(null, { status: 204 })
+  }),
+
   http.get(`${API_URL}/machines/:id/cycles`, ({ params }) => {
     const machineId = Number(params.id)
     const filtered = mockCycles.filter((c) => c.machine_id === machineId)
     return HttpResponse.json(filtered)
+  }),
+
+  http.post(`${API_URL}/cycles`, async ({ request }) => {
+    const body = await request.json()
+    return HttpResponse.json(
+      {
+        id: 99,
+        machine_id: Number(body.machine_id),
+        name: body.name,
+        duration_minutes: Number(body.duration_minutes),
+      },
+      { status: 201 }
+    )
+  }),
+
+  http.delete(`${API_URL}/cycles/:id`, () => {
+    return new HttpResponse(null, { status: 204 })
   }),
 
   http.get(`${API_URL}/bookings`, () => {
@@ -230,6 +301,17 @@ export const handlers = [
       status: 'in_progress',
       actual_start_time: new Date().toISOString(),
     })
+  }),
+
+  http.patch(`${API_URL}/bookings/:id/cancel`, ({ params }) => {
+    return HttpResponse.json({
+      id: Number(params.id),
+      status: 'cancelled',
+    })
+  }),
+
+  http.get(`${API_URL}/machine-logs`, () => {
+    return HttpResponse.json(mockMachineLogs)
   }),
 ]
 

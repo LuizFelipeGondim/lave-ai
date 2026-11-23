@@ -32,7 +32,7 @@ describe('App — fluxo de autenticação e navegação', () => {
     expect(screen.getByRole('heading', { name: /agendar horário/i })).toBeInTheDocument()
 
     await user.click(within(nav).getByRole('button', { name: /^histórico$/i }))
-    expect(screen.getByRole('heading', { name: /histórico/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /meus agendamentos/i })).toBeInTheDocument()
   })
 
   it('abre a tela de agendamento com a máquina pré-selecionada ao clicar em Agendar no painel', async () => {
@@ -54,7 +54,7 @@ describe('App — fluxo de autenticação e navegação', () => {
     })
   })
 
-  it('permite que administrador acesse a área de Máquinas e faça logout', async () => {
+  it('permite que administrador acesse Máquinas, Auditoria e faça logout', async () => {
     const user = userEvent.setup()
     render(<App />)
 
@@ -65,7 +65,14 @@ describe('App — fluxo de autenticação e navegação', () => {
     })
 
     await user.click(screen.getByRole('button', { name: /^máquinas$/i }))
-    expect(screen.getByRole('heading', { name: /máquinas e ciclos/i })).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /máquinas e ciclos/i })).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: /^histórico$/i }))
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /histórico e auditoria/i })).toBeInTheDocument()
+    })
 
     await user.click(screen.getByRole('button', { name: /^sair$/i }))
 
