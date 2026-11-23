@@ -4,18 +4,9 @@ import Header from './components/Header'
 import LoginPage from './pages/LoginPage'
 import LaundryOverview from './pages/LaundryOverview'
 import SchedulePage from './pages/SchedulePage'
+import MachinesPage from './pages/MachinesPage'
+import HistoryPage from './pages/HistoryPage'
 import './App.css'
-
-const PLACEHOLDER_PAGES = {
-  history: {
-    title: 'Histórico',
-    description: 'Consulte agendamentos anteriores e acompanhe alterações registradas.',
-  },
-  machines: {
-    title: 'Máquinas e ciclos',
-    description: 'Cadastre lavadoras, secadoras e os ciclos disponíveis em cada equipamento.',
-  },
-}
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -80,12 +71,9 @@ export default function App() {
             <SchedulePage user={user} initialMachineId={selectedMachineId} />
           )}
 
-          {activePage !== 'overview' && activePage !== 'schedule' && (
-            <div className="page-head">
-              <h1 className="page-head__title">{PLACEHOLDER_PAGES[activePage].title}</h1>
-              <p className="page-head__subtitle">{PLACEHOLDER_PAGES[activePage].description}</p>
-            </div>
-          )}
+          {activePage === 'history' && <HistoryPage user={user} />}
+
+          {activePage === 'machines' && <MachinesPage />}
         </div>
       </main>
     </div>
