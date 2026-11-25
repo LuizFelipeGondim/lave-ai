@@ -17,7 +17,7 @@ export async function authRoutes(app: FastifyInstance) {
 
     const parsed = bodySchema.safeParse(request.body);
     if (!parsed.success) {
-      const message = parsed.error.errors[0]?.message ?? "Dados invalidos.";
+      const message = parsed.error.issues[0]?.message ?? "Dados invalidos.";
       return reply.status(400).send({ message });
     }
 

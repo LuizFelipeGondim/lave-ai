@@ -100,7 +100,7 @@ export async function bookingRoutes(app: FastifyInstance) {
 
       const parsed = bodySchema.safeParse(request.body);
       if (!parsed.success) {
-        return reply.status(400).send({ message: parsed.error.errors[0]?.message ?? "Dados invalidos." });
+        return reply.status(400).send({ message: parsed.error.issues[0]?.message ?? "Dados invalidos." });
       }
 
       const { machine_id, cycle_id, reserved_minutes, start_time } = parsed.data;
@@ -349,6 +349,9 @@ export async function bookingRoutes(app: FastifyInstance) {
       if (!booking) {
         return reply.status(404).send({ message: "Agendamento nao encontrado." });
       }
+
+      // Cancela expirados em tempo real antes de validar (fix: takeover sem GET /bookings previo)
+      await autoCancelExpired(booking.machine_id);
 
       // Apenas o dono deste agendamento pode fazer takeover
       if (booking.user_id !== user.id) {

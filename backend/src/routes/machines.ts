@@ -31,7 +31,7 @@ export async function machineRoutes(app: FastifyInstance) {
 
       const parsed = bodySchema.safeParse(request.body);
       if (!parsed.success) {
-        return reply.status(400).send({ message: parsed.error.errors[0]?.message ?? "Dados invalidos." });
+        return reply.status(400).send({ message: parsed.error.issues[0]?.message ?? "Dados invalidos." });
       }
 
       const { name, type, status } = parsed.data;
@@ -68,7 +68,7 @@ export async function machineRoutes(app: FastifyInstance) {
 
       const parsed = bodySchema.safeParse(request.body);
       if (!parsed.success) {
-        return reply.status(400).send({ message: parsed.error.errors[0]?.message ?? "Dados invalidos." });
+        return reply.status(400).send({ message: parsed.error.issues[0]?.message ?? "Dados invalidos." });
       }
 
       const machine = await db("machines").where({ id }).first();
