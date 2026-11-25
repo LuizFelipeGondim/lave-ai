@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { API_URL } from '../config/api'
 import {
   formatTime,
+  getEffectiveStatus,
   getMachineDisplayState,
   getNextAvailableStart,
   getRemainingMinutes,
@@ -45,17 +46,19 @@ function ApplianceIcon({ type, stateCode }) {
   )
 }
 
-function MachineCard({ machine, bookings, onScheduleMachine }) {
-  const displayState = getMachineDisplayState(machine, bookings)
-  const { startTime, hasQueue } = getNextAvailableStart(bookings, machine.id)
+function MachineCard({ machine, bookings, now, onScheduleMachine }) {
+  const displayState = getMachineDisplayState(machine, bookings, now)
+  const { startTime, hasQueue } = getNextAvailableStart(bookings, machine.id, now)
   const activeBooking = displayState.activeBooking
 
   const queueCount = bookings.filter(
-    (b) => Number(b.machine_id) === Number(machine.id) && b.status === 'scheduled'
+    (b) =>
+      Number(b.machine_id) === Number(machine.id) &&
+      getEffectiveStatus(b, now) === 'scheduled'
   ).length
 
   const remaining = activeBooking
-    ? getRemainingMinutes(activeBooking.end_time)
+    ? getRemainingMinutes(activeBooking.end_time, now)
     : 0
 
   return (
@@ -166,6 +169,12 @@ export default function LaundryOverview({ user, onOpenSchedule }) {
   const [bookings, setBookings] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [now, setNow] = useState(() => new Date())
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(timer)
+  }, [])
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -201,7 +210,7 @@ export default function LaundryOverview({ user, onOpenSchedule }) {
 
   const washers = machines.filter((m) => m.type === 'washer')
   const dryers = machines.filter((m) => m.type === 'dryer')
-  const notifications = getUserNotifications(bookings, machines, user?.id)
+  const notifications = getUserNotifications(bookings, machines, user?.id, now)
 
   const todayLabel = new Date().toLocaleDateString('pt-BR', {
     weekday: 'long',
@@ -289,6 +298,7 @@ export default function LaundryOverview({ user, onOpenSchedule }) {
                 key={machine.id}
                 machine={machine}
                 bookings={bookings}
+                now={now}
                 onScheduleMachine={onOpenSchedule}
               />
             ))}
@@ -310,6 +320,7 @@ export default function LaundryOverview({ user, onOpenSchedule }) {
                 key={machine.id}
                 machine={machine}
                 bookings={bookings}
+                now={now}
                 onScheduleMachine={onOpenSchedule}
               />
             ))}

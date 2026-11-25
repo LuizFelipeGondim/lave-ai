@@ -89,7 +89,7 @@ describe('LaundryOverview — painel de lavadoras, secadoras e avisos', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/o ciclo na lavadora a terminou/i)).toBeInTheDocument()
-      expect(screen.getByText(/expirou por atraso/i)).toBeInTheDocument()
+      expect(screen.getByText(/foi cancelado por atraso/i)).toBeInTheDocument()
     })
 
     await user.click(screen.getByRole('button', { name: /ir para fila/i }))

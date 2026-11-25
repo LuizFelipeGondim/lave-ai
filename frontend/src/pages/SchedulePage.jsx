@@ -8,8 +8,8 @@ import {
   canTakeoverMachine,
   formatTime,
   formatTimeRange,
+  getEffectiveStatus,
   getNextAvailableStart,
-  isBookingDelayed,
   validateReservedMinutes,
 } from '../utils/scheduleRules'
 import './SchedulePage.css'
@@ -18,7 +18,6 @@ const STATUS_LABELS = {
   scheduled: 'Agendado',
   in_progress: 'Em andamento',
   completed: 'Concluído',
-  expired: 'Perdido por atraso',
   cancelled: 'Cancelado',
 }
 
@@ -37,6 +36,12 @@ export default function SchedulePage({ user, initialMachineId = null }) {
   const [actionBookingId, setActionBookingId] = useState(null)
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState('')
+  const [now, setNow] = useState(() => new Date())
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(timer)
+  }, [])
 
   const loadBaseData = useCallback(async () => {
     setLoading(true)
@@ -58,17 +63,17 @@ export default function SchedulePage({ user, initialMachineId = null }) {
       ])
 
       const safeMachines = Array.isArray(machinesData) ? machinesData : []
-      setMachines(safeMachines)
+      const schedulableMachines = safeMachines.filter((m) => m.status !== 'maintenance')
+      setMachines(schedulableMachines)
       setBookings(Array.isArray(bookingsData) ? bookingsData : [])
 
       setSelectedMachineId((current) => {
-        if (current && safeMachines.some((m) => String(m.id) === String(current))) {
+        if (current && schedulableMachines.some((m) => String(m.id) === String(current))) {
           return current
         }
         const preferred =
-          safeMachines.find((m) => String(m.id) === String(initialMachineId)) ||
-          safeMachines.find((m) => m.status !== 'maintenance') ||
-          safeMachines[0]
+          schedulableMachines.find((m) => String(m.id) === String(initialMachineId)) ||
+          schedulableMachines[0]
         return preferred ? String(preferred.id) : ''
       })
     } catch {
@@ -83,10 +88,13 @@ export default function SchedulePage({ user, initialMachineId = null }) {
   }, [loadBaseData])
 
   useEffect(() => {
-    if (initialMachineId) {
+    if (
+      initialMachineId &&
+      machines.some((m) => String(m.id) === String(initialMachineId))
+    ) {
       setSelectedMachineId(String(initialMachineId))
     }
-  }, [initialMachineId])
+  }, [initialMachineId, machines])
 
   useEffect(() => {
     if (!selectedMachineId) {
@@ -144,11 +152,6 @@ export default function SchedulePage({ user, initialMachineId = null }) {
 
   const selectedMachine = machines.find((m) => String(m.id) === String(selectedMachineId))
   const selectedCycle = cycles.find((c) => String(c.id) === String(selectedCycleId))
-  const isMaintenance = selectedMachine?.status === 'maintenance'
-
-  const nextSlot = selectedMachine
-    ? getNextAvailableStart(bookings, selectedMachine.id)
-    : { startTime: new Date().toISOString(), hasQueue: false }
 
   const durationMinutes = selectedCycle ? Number(selectedCycle.duration_minutes) : 0
   const parsedReserved = reservedMinutes === '' ? durationMinutes : Number(reservedMinutes)
@@ -156,18 +159,24 @@ export default function SchedulePage({ user, initialMachineId = null }) {
     ? validateReservedMinutes(durationMinutes, parsedReserved)
     : { valid: false, error: '' }
 
+  const plannedGrace = validation.valid && parsedReserved === durationMinutes ? AUTO_GRACE_MINUTES : 0
+  const totalEffectiveMinutes = validation.valid ? parsedReserved + plannedGrace : 0
+
+  const nextSlot = selectedMachine
+    ? getNextAvailableStart(bookings, selectedMachine.id, now, totalEffectiveMinutes)
+    : { startTime: now.toISOString(), hasQueue: false, fitsInGap: false }
+
   const previewWindow =
     selectedCycle && validation.valid
       ? calculateBookingWindow(nextSlot.startTime, durationMinutes, parsedReserved)
       : null
 
   const machineQueue = bookings
-    .filter(
-      (b) =>
-        Number(b.machine_id) === Number(selectedMachineId) &&
-        b.status !== 'cancelled' &&
-        b.status !== 'completed'
-    )
+    .filter((b) => {
+      if (Number(b.machine_id) !== Number(selectedMachineId)) return false
+      const status = getEffectiveStatus(b, now)
+      return status === 'scheduled' || status === 'in_progress'
+    })
     .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
 
   const handleCycleChange = (cycle) => {
@@ -184,11 +193,6 @@ export default function SchedulePage({ user, initialMachineId = null }) {
 
     if (!selectedMachine) {
       setError('Selecione uma máquina para agendar.')
-      return
-    }
-
-    if (isMaintenance) {
-      setError('Esta máquina está em manutenção e não aceita novos agendamentos.')
       return
     }
 
@@ -294,6 +298,10 @@ export default function SchedulePage({ user, initialMachineId = null }) {
 
       {loading ? (
         <p className="schedule__empty">Carregando fila e equipamentos...</p>
+      ) : machines.length === 0 ? (
+        <p className="schedule__empty">
+          Nenhum equipamento disponível para agendamento no momento.
+        </p>
       ) : (
         <div className="schedule__grid">
           <section className="schedule-panel" aria-labelledby="new-booking-heading">
@@ -319,7 +327,6 @@ export default function SchedulePage({ user, initialMachineId = null }) {
                   {machines.map((machine) => (
                     <option key={machine.id} value={machine.id}>
                       {machine.name} ({machine.type === 'dryer' ? 'Secadora' : 'Lavadora'})
-                      {machine.status === 'maintenance' ? ' — Em manutenção' : ''}
                     </option>
                   ))}
                 </select>
@@ -404,14 +411,16 @@ export default function SchedulePage({ user, initialMachineId = null }) {
                 </div>
               )}
 
-              {previewWindow && !isMaintenance && (
+              {previewWindow && (
                 <div className="slot-summary">
                   <div className="slot-summary__row">
                     <span>Início na fila</span>
                     <strong className="tabular-nums">
-                      {nextSlot.hasQueue
-                        ? `${formatTime(previewWindow.startTime)} (logo após o anterior)`
-                        : `${formatTime(previewWindow.startTime)} (disponível agora)`}
+                      {nextSlot.fitsInGap
+                        ? `${formatTime(previewWindow.startTime)} (encaixe em janela livre)`
+                        : nextSlot.hasQueue
+                          ? `${formatTime(previewWindow.startTime)} (logo após o anterior)`
+                          : `${formatTime(previewWindow.startTime)} (disponível agora)`}
                     </strong>
                   </div>
                   <div className="slot-summary__row">
@@ -430,7 +439,7 @@ export default function SchedulePage({ user, initialMachineId = null }) {
               <button
                 type="submit"
                 className="booking-submit"
-                disabled={submitting || isMaintenance || !selectedCycle}
+                disabled={submitting || !selectedCycle}
               >
                 {submitting ? 'Confirmando...' : 'Confirmar na fila'}
               </button>
@@ -455,11 +464,11 @@ export default function SchedulePage({ user, initialMachineId = null }) {
               <ol className="queue-rail">
                 {machineQueue.map((booking) => {
                   const isOwner = String(booking.user_id) === String(user?.id)
-                  const delayed = isBookingDelayed(booking)
-                  const effectiveStatus = delayed ? 'expired' : booking.status
-                  const allowStart = canStartBooking(booking, user?.id)
-                  const allowTakeover = canTakeoverMachine(booking, bookings, user?.id)
-                  const allowFinish = isOwner && booking.status === 'in_progress'
+                  const effectiveStatus = getEffectiveStatus(booking, now)
+                  const allowStart = canStartBooking(booking, bookings, user?.id, now)
+                  const allowTakeover = canTakeoverMachine(booking, bookings, user?.id, now)
+                  const allowFinish =
+                    (isOwner || user?.role === 'admin') && booking.status === 'in_progress'
                   const busy = actionBookingId === booking.id
 
                   return (
@@ -491,12 +500,6 @@ export default function SchedulePage({ user, initialMachineId = null }) {
                             : ''}
                         </p>
                       </div>
-
-                      {delayed && isOwner && (
-                        <p className="queue-item__delay-msg">
-                          O tempo restante da janela é menor que a duração do ciclo. Apenas o próximo da fila pode assumir a máquina.
-                        </p>
-                      )}
 
                       <div className="queue-item__actions">
                         {allowStart && !allowTakeover && (

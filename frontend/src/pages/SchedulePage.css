@@ -257,11 +257,6 @@
   border-left-color: var(--status-free);
 }
 
-.queue-item--expired {
-  border-left-color: var(--status-danger);
-  background-color: #FFFDFD;
-}
-
 .queue-item__header {
   display: flex;
   align-items: center;
@@ -292,11 +287,6 @@
   background-color: var(--status-use-bg);
 }
 
-.queue-status--expired {
-  color: #991B1B;
-  background-color: var(--status-danger-bg);
-}
-
 .queue-item__body {
   display: flex;
   flex-direction: column;
@@ -312,11 +302,6 @@
 .queue-item__meta {
   font-size: 0.84375rem;
   color: var(--ink-secondary);
-}
-
-.queue-item__delay-msg {
-  font-size: 0.84375rem;
-  color: var(--status-danger);
 }
 
 .queue-item__actions {

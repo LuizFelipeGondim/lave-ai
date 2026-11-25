@@ -164,11 +164,6 @@
   background-color: var(--bg-rinse);
 }
 
-.history-pill--expired {
-  color: #991B1B;
-  background-color: var(--status-danger-bg);
-}
-
 .history-pill--cancelled {
   color: #92400E;
   background-color: var(--status-warn-bg);

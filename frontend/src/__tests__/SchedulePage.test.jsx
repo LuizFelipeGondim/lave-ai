@@ -67,12 +67,16 @@ describe('SchedulePage — agendamento sequencial, ciclos por máquina e regra a
     })
   })
 
-  it('bloqueia novo agendamento quando a máquina está em manutenção', async () => {
+  it('não exibe máquinas em manutenção no seletor de agendamento', async () => {
     render(<SchedulePage user={mockUsers.user} initialMachineId={4} />)
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /confirmar na fila/i })).toBeDisabled()
+      expect(screen.getByLabelText(/equipamento/i)).toBeInTheDocument()
     })
+
+    const select = screen.getByLabelText(/equipamento/i)
+    expect(select).not.toHaveTextContent(/secadora 02/i)
+    expect(select).toHaveValue('1')
   })
 
   it('permite apenas ao próximo usuário da fila assumir a máquina quando o anterior atrasa', async () => {
@@ -130,7 +134,7 @@ describe('SchedulePage — agendamento sequencial, ciclos por máquina e regra a
     })
   })
 
-  it('permite iniciar e finalizar um ciclo do usuário logado na fila', async () => {
+  it('permite iniciar ciclo no horário agendado quando a máquina está livre', async () => {
     const now = Date.now()
     const min = 60 * 1000
 
@@ -152,6 +156,30 @@ describe('SchedulePage — agendamento sequencial, ciclos por máquina e regra a
             effective_end_time: new Date(now + 38 * min).toISOString(),
             status: 'scheduled',
           },
+        ])
+      )
+    )
+
+    const user = userEvent.setup()
+    render(<SchedulePage user={mockUsers.user} initialMachineId={2} />)
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /iniciar ciclo/i })).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: /iniciar ciclo/i }))
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent(/ciclo iniciado com sucesso/i)
+    })
+  })
+
+  it('permite finalizar um ciclo em andamento e oculta iniciar ciclo para reservas futuras', async () => {
+    const now = Date.now()
+    const min = 60 * 1000
+
+    server.use(
+      http.get(`${API_URL}/bookings`, () =>
+        HttpResponse.json([
           {
             id: 81,
             user_id: mockUsers.user.id,
@@ -168,6 +196,21 @@ describe('SchedulePage — agendamento sequencial, ciclos por máquina e regra a
             actual_start_time: new Date(now - 50 * min).toISOString(),
             status: 'in_progress',
           },
+          {
+            id: 82,
+            user_id: mockUsers.user.id,
+            user_name: mockUsers.user.name,
+            machine_id: 2,
+            cycle_id: 3,
+            cycle_name: 'Roupa leve',
+            cycle_duration_minutes: 30,
+            reserved_minutes: 30,
+            grace_minutes: 10,
+            start_time: new Date(now + 20 * min).toISOString(),
+            end_time: new Date(now + 50 * min).toISOString(),
+            effective_end_time: new Date(now + 60 * min).toISOString(),
+            status: 'scheduled',
+          },
         ])
       )
     )
@@ -176,14 +219,10 @@ describe('SchedulePage — agendamento sequencial, ciclos por máquina e regra a
     render(<SchedulePage user={mockUsers.user} initialMachineId={2} />)
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /iniciar ciclo/i })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /finalizar e liberar/i })).toBeInTheDocument()
     })
 
-    await user.click(screen.getByRole('button', { name: /iniciar ciclo/i }))
-    await waitFor(() => {
-      expect(screen.getByRole('status')).toHaveTextContent(/ciclo iniciado com sucesso/i)
-    })
+    expect(screen.queryByRole('button', { name: /iniciar ciclo/i })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /finalizar e liberar/i }))
     await waitFor(() => {

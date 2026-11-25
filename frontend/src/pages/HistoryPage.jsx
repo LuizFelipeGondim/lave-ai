@@ -1,13 +1,12 @@
 import { useEffect, useState, useCallback } from 'react'
 import { API_URL } from '../config/api'
-import { formatTimeRange } from '../utils/scheduleRules'
+import { formatTimeRange, getEffectiveStatus } from '../utils/scheduleRules'
 import './HistoryPage.css'
 
 const BOOKING_STATUS_LABELS = {
   scheduled: 'Agendado',
   in_progress: 'Em andamento',
   completed: 'Concluído',
-  expired: 'Perdido por atraso',
   cancelled: 'Cancelado',
 }
 
@@ -43,6 +42,12 @@ export default function HistoryPage({ user }) {
   const [cancellingId, setCancellingId] = useState(null)
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState('')
+  const [now, setNow] = useState(() => new Date())
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(timer)
+  }, [])
 
   const loadHistory = useCallback(async () => {
     setLoading(true)
@@ -96,7 +101,7 @@ export default function HistoryPage({ user }) {
     : bookings.filter((b) => String(b.user_id) === String(user?.id))
 
   const filteredBookings = scopedBookings
-    .filter((b) => statusFilter === 'all' || b.status === statusFilter)
+    .filter((b) => statusFilter === 'all' || getEffectiveStatus(b, now) === statusFilter)
     .sort((a, b) => new Date(b.start_time) - new Date(a.start_time))
 
   const filteredLogs = logs
@@ -201,7 +206,6 @@ export default function HistoryPage({ user }) {
               <option value="scheduled">Agendado</option>
               <option value="in_progress">Em andamento</option>
               <option value="completed">Concluído</option>
-              <option value="expired">Perdido por atraso</option>
               <option value="cancelled">Cancelado</option>
             </select>
           </div>
@@ -224,8 +228,9 @@ export default function HistoryPage({ user }) {
                 </thead>
                 <tbody>
                   {filteredBookings.map((booking) => {
+                    const effectiveStatus = getEffectiveStatus(booking, now)
                     const canCancel =
-                      booking.status === 'scheduled' &&
+                      effectiveStatus === 'scheduled' &&
                       (isAdmin || String(booking.user_id) === String(user?.id))
 
                     return (
@@ -248,8 +253,8 @@ export default function HistoryPage({ user }) {
                             : ''}
                         </td>
                         <td>
-                          <span className={`history-pill history-pill--${booking.status}`}>
-                            {BOOKING_STATUS_LABELS[booking.status] || booking.status}
+                          <span className={`history-pill history-pill--${effectiveStatus}`}>
+                            {BOOKING_STATUS_LABELS[effectiveStatus] || effectiveStatus}
                           </span>
                         </td>
                         <td>
