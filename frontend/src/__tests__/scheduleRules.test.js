@@ -43,7 +43,7 @@ describe('scheduleRules — regras de fila, folga e anti-atraso', () => {
     expect(window.effectiveEndTime).toBe(addMinutes(BASE_TIME, 70).toISOString())
   })
 
-  it('trava o próximo horário livre exatamente no término efetivo do último agendamento da máquina', () => {
+  it('trava o próximo horário livre exatamente no término efetivo do último agendamento ativo da máquina', () => {
     const bookings = [
       {
         id: 1,
@@ -69,15 +69,70 @@ describe('scheduleRules — regras de fila, folga e anti-atraso', () => {
     expect(result.startTime).toBe(addMinutes(BASE_TIME, 70).toISOString())
   })
 
-  it('retorna o horário atual quando a máquina está totalmente livre', () => {
-    const now = addMinutes(BASE_TIME, 10)
-    const result = getNextAvailableStart([], 1, now)
+  it('ignora agendamento expirado por atraso sem fila atrás e libera o horário atual', () => {
+    const delayedOnly = [
+      {
+        id: 1,
+        machine_id: 1,
+        cycle_duration_minutes: 60,
+        reserved_minutes: 60,
+        status: 'scheduled',
+        start_time: BASE_TIME.toISOString(),
+        end_time: addMinutes(BASE_TIME, 60).toISOString(),
+        effective_end_time: addMinutes(BASE_TIME, 70).toISOString(),
+      },
+    ]
+
+    const now = addMinutes(BASE_TIME, 15)
+    const result = getNextAvailableStart(delayedOnly, 1, now)
 
     expect(result.hasQueue).toBe(false)
     expect(result.startTime).toBe(now.toISOString())
   })
 
-  it('detecta atraso quando horário atual + duração do ciclo ultrapassa o limite efetivo', () => {
+  it('encaixa novo agendamento em um buraco livre se o ciclo couber antes do próximo, ou joga para o final se não couber', () => {
+    const bookingsWithGap = [
+      {
+        id: 1,
+        machine_id: 1,
+        status: 'in_progress',
+        start_time: addMinutes(BASE_TIME, 20).toISOString(),
+        end_time: addMinutes(BASE_TIME, 70).toISOString(),
+        effective_end_time: addMinutes(BASE_TIME, 80).toISOString(),
+      },
+      {
+        id: 2,
+        machine_id: 1,
+        status: 'scheduled',
+        cycle_duration_minutes: 30,
+        reserved_minutes: 30,
+        start_time: addMinutes(BASE_TIME, 130).toISOString(),
+        end_time: addMinutes(BASE_TIME, 160).toISOString(),
+        effective_end_time: addMinutes(BASE_TIME, 170).toISOString(),
+      },
+    ]
+
+    const now = addMinutes(BASE_TIME, 30)
+
+    const fitsShortCycle = getNextAvailableStart(bookingsWithGap, 1, now, 40)
+    expect(fitsShortCycle.fitsInGap).toBe(true)
+    expect(fitsShortCycle.startTime).toBe(addMinutes(BASE_TIME, 80).toISOString())
+
+    const doesNotFitHeavyCycle = getNextAvailableStart(bookingsWithGap, 1, now, 70)
+    expect(doesNotFitHeavyCycle.fitsInGap).toBe(false)
+    expect(doesNotFitHeavyCycle.startTime).toBe(addMinutes(BASE_TIME, 170).toISOString())
+  })
+
+  it('bloqueia início antes do horário agendado, enquanto a máquina está em uso ou após atraso', () => {
+    const runningOther = {
+      id: 99,
+      user_id: 'u0',
+      machine_id: 1,
+      status: 'in_progress',
+      start_time: addMinutes(BASE_TIME, -30).toISOString(),
+      end_time: BASE_TIME.toISOString(),
+    }
+
     const booking = {
       id: 1,
       user_id: 'u1',
@@ -91,12 +146,15 @@ describe('scheduleRules — regras de fila, folga e anti-atraso', () => {
       status: 'scheduled',
     }
 
+    expect(canStartBooking(booking, [booking], 'u1', addMinutes(BASE_TIME, -5))).toBe(false)
+    expect(canStartBooking(booking, [runningOther, booking], 'u1', addMinutes(BASE_TIME, 2))).toBe(false)
+
     expect(isBookingDelayed(booking, addMinutes(BASE_TIME, 8))).toBe(false)
-    expect(canStartBooking(booking, 'u1', addMinutes(BASE_TIME, 8))).toBe(true)
+    expect(canStartBooking(booking, [booking], 'u1', addMinutes(BASE_TIME, 8))).toBe(true)
 
     expect(isBookingDelayed(booking, addMinutes(BASE_TIME, 11))).toBe(true)
-    expect(canStartBooking(booking, 'u1', addMinutes(BASE_TIME, 11))).toBe(false)
-    expect(canStartBooking(booking, 'u2', addMinutes(BASE_TIME, 5))).toBe(false)
+    expect(canStartBooking(booking, [booking], 'u1', addMinutes(BASE_TIME, 11))).toBe(false)
+    expect(canStartBooking(booking, [booking], 'u2', addMinutes(BASE_TIME, 5))).toBe(false)
   })
 
   it('permite assumir a máquina apenas para o próximo usuário imediato na sequência após atraso', () => {

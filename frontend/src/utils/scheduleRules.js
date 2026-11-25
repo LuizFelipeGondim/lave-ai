@@ -70,35 +70,64 @@ export function calculateBookingWindow(startTime, cycleDuration, reservedMinutes
   }
 }
 
-export function getNextAvailableStart(bookings, machineId, now = new Date()) {
-  const nowDate = new Date(now)
-  const activeBookings = bookings.filter(
-    (b) =>
-      Number(b.machine_id) === Number(machineId) &&
-      (b.status === 'scheduled' || b.status === 'in_progress')
-  )
-
-  let latestEnd = nowDate
-
-  for (const booking of activeBookings) {
-    const boundary = new Date(booking.effective_end_time || booking.end_time)
-    if (boundary > latestEnd) {
-      latestEnd = boundary
-    }
-  }
-
-  return {
-    startTime: latestEnd.toISOString(),
-    hasQueue: latestEnd.getTime() > nowDate.getTime(),
-  }
-}
-
 export function isBookingDelayed(booking, now = new Date()) {
   if (!booking || booking.status !== 'scheduled') return false
   const cycleDuration = Number(booking.cycle_duration_minutes || booking.reserved_minutes || 0)
   const effectiveEnd = new Date(booking.effective_end_time || booking.end_time)
   const projectedFinish = addMinutes(now, cycleDuration)
   return projectedFinish.getTime() > effectiveEnd.getTime()
+}
+
+export function getEffectiveStatus(booking, now = new Date()) {
+  if (!booking) return 'cancelled'
+  if (booking.status === 'expired' || isBookingDelayed(booking, now)) {
+    return 'cancelled'
+  }
+  return booking.status
+}
+
+export function getNextAvailableStart(
+  bookings,
+  machineId,
+  now = new Date(),
+  totalEffectiveMinutes = 0
+) {
+  const nowDate = new Date(now)
+  const activeBookings = bookings
+    .filter((b) => {
+      if (Number(b.machine_id) !== Number(machineId)) return false
+      const status = getEffectiveStatus(b, nowDate)
+      return status === 'in_progress' || status === 'scheduled'
+    })
+    .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
+
+  let candidateStart = nowDate
+
+  for (const booking of activeBookings) {
+    const bookingStart = new Date(booking.start_time)
+    const bookingEnd = new Date(booking.effective_end_time || booking.end_time)
+
+    if (totalEffectiveMinutes > 0 && candidateStart < bookingStart) {
+      const candidateEnd = addMinutes(candidateStart, totalEffectiveMinutes)
+      if (candidateEnd.getTime() <= bookingStart.getTime()) {
+        return {
+          startTime: candidateStart.toISOString(),
+          hasQueue: candidateStart.getTime() > nowDate.getTime(),
+          fitsInGap: true,
+        }
+      }
+    }
+
+    if (bookingEnd > candidateStart) {
+      candidateStart = bookingEnd
+    }
+  }
+
+  return {
+    startTime: candidateStart.toISOString(),
+    hasQueue: candidateStart.getTime() > nowDate.getTime(),
+    fitsInGap: false,
+  }
 }
 
 export function isCycleFinished(booking, now = new Date()) {
@@ -111,32 +140,47 @@ export function isCycleFinished(booking, now = new Date()) {
   return nowTime >= expectedEnd
 }
 
-export function canStartBooking(booking, userId, now = new Date()) {
-  if (!booking || booking.status !== 'scheduled') return false
+export function canStartBooking(booking, machineBookings, userId, now = new Date()) {
+  if (!booking || getEffectiveStatus(booking, now) !== 'scheduled') return false
   if (String(booking.user_id) !== String(userId)) return false
-  return !isBookingDelayed(booking, now)
+
+  const nowTime = new Date(now).getTime()
+  const startTime = new Date(booking.start_time).getTime()
+  if (nowTime < startTime) return false
+
+  const sameMachine = (machineBookings || []).filter(
+    (b) => Number(b.machine_id) === Number(booking.machine_id)
+  )
+  const hasRunning = sameMachine.some((b) => b.status === 'in_progress')
+  if (hasRunning) return false
+
+  return true
 }
 
 export function canTakeoverMachine(booking, machineBookings, userId, now = new Date()) {
-  if (!booking || booking.status !== 'scheduled') return false
+  if (!booking || getEffectiveStatus(booking, now) !== 'scheduled') return false
   if (String(booking.user_id) !== String(userId)) return false
 
+  const nowMs = new Date(now).getTime()
   const sameMachine = machineBookings
     .filter((b) => Number(b.machine_id) === Number(booking.machine_id))
     .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
 
-  const hasRunning = sameMachine.some((b) => b.status === 'in_progress')
-  if (hasRunning) return false
+  if (sameMachine.some((b) => b.status === 'in_progress')) return false
 
-  const activeOrExpired = sameMachine.filter(
-    (b) => b.status === 'expired' || b.status === 'scheduled'
-  )
+  const activeScheduled = sameMachine.filter((b) => getEffectiveStatus(b, now) === 'scheduled')
+  if (activeScheduled.length === 0 || activeScheduled[0].id !== booking.id) {
+    return false
+  }
 
-  const currentIndex = activeOrExpired.findIndex((b) => b.id === booking.id)
-  if (currentIndex <= 0) return false
-
-  const previous = activeOrExpired[currentIndex - 1]
-  return previous.status === 'expired' || isBookingDelayed(previous, now)
+  const bookingStartMs = new Date(booking.start_time).getTime()
+  return sameMachine.some((prev) => {
+    if (prev.id === booking.id) return false
+    if (getEffectiveStatus(prev, now) !== 'cancelled') return false
+    const prevStartMs = new Date(prev.start_time).getTime()
+    const prevEffectiveEndMs = new Date(prev.effective_end_time || prev.end_time).getTime()
+    return prevStartMs < bookingStartMs && prevEffectiveEndMs > nowMs
+  })
 }
 
 export function getMachineDisplayState(machine, bookings, now = new Date()) {
@@ -159,9 +203,8 @@ export function getMachineDisplayState(machine, bookings, now = new Date()) {
   const nowTime = new Date(now).getTime()
   const currentScheduled = machineBookings.find(
     (b) =>
-      b.status === 'scheduled' &&
-      new Date(b.start_time).getTime() <= nowTime &&
-      !isBookingDelayed(b, now)
+      getEffectiveStatus(b, now) === 'scheduled' &&
+      new Date(b.start_time).getTime() <= nowTime
   )
 
   if (currentScheduled) {
@@ -196,13 +239,13 @@ export function getUserNotifications(bookings, machines, userId, now = new Date(
       continue
     }
 
-    if (isOwner && (booking.status === 'expired' || isBookingDelayed(booking, now))) {
+    if (isOwner && isBookingDelayed(booking, now)) {
       notifications.push({
         id: `delayed-${booking.id}`,
         type: 'delayed',
         machineId: booking.machine_id,
         bookingId: booking.id,
-        message: `Seu horário das ${formatTime(booking.start_time)} na ${machineName} expirou por atraso.`,
+        message: `Seu horário das ${formatTime(booking.start_time)} na ${machineName} foi cancelado por atraso.`,
         actionLabel: 'Agendar novamente',
       })
       continue
@@ -214,13 +257,13 @@ export function getUserNotifications(bookings, machines, userId, now = new Date(
         type: 'takeover',
         machineId: booking.machine_id,
         bookingId: booking.id,
-        message: `O horário anterior na ${machineName} atrasou. Você é o próximo da fila e já pode assumir a máquina.`,
+        message: `O horário anterior na ${machineName} foi cancelado. Você é o próximo da fila e já pode assumir a máquina.`,
         actionLabel: 'Assumir máquina',
       })
       continue
     }
 
-    if (isOwner && booking.status === 'scheduled') {
+    if (isOwner && getEffectiveStatus(booking, now) === 'scheduled') {
       const startTime = new Date(booking.start_time).getTime()
       const diffMinutes = Math.ceil((startTime - nowTime) / MS_PER_MINUTE)
 
