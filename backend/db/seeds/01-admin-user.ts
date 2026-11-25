@@ -4,9 +4,8 @@ import { randomUUID } from "node:crypto";
 import { env } from "../../src/env/index.js";
 
 export async function seed(knex: Knex): Promise<void> {
-  // 1. Cria o Admin padrão se ainda não existir
   const existingAdmin = await knex("users")
-    .where({ email: "admin@lavanderia.com" })
+    .where({ email: "admin@laveai.com" })
     .first();
 
   if (!existingAdmin) {
@@ -16,21 +15,13 @@ export async function seed(knex: Knex): Promise<void> {
     await knex("users").insert({
       id: randomUUID(),
       name: "Admin Lavanderia",
-      email: "admin@lavanderia.com",
+      email: "admin@laveai.com",
       password_hash,
-      role: "admin", // Importante: define a permissão de administrador
-      unit_number: null,
+      role: "admin",
     });
-  }
 
-  // 2. Opcional: já deixa os ciclos padrão cadastrados
-  const existingCycles = await knex("cycle_types").first();
-  if (!existingCycles) {
-    await knex("cycle_types").insert([
-      { id: randomUUID(), name: "Roupa Leve", machine_type: "washer", duration_minutes: 30 },
-      { id: randomUUID(), name: "Dia a Dia", machine_type: "washer", duration_minutes: 45 },
-      { id: randomUUID(), name: "Roupa Pesada", machine_type: "washer", duration_minutes: 60 },
-      { id: randomUUID(), name: "Secagem Rápida", machine_type: "dryer", duration_minutes: 40 },
-    ]);
+    console.log("Admin seed criado: admin@laveai.com / admin123");
+  } else {
+    console.log("Admin ja existe, seed ignorada.");
   }
 }
