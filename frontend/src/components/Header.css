@@ -1,0 +1,139 @@
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background-color: var(--bg-canvas);
+  border-bottom: 1px solid var(--border-panel);
+}
+
+.site-header__inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 24px;
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.site-header__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  flex-shrink: 0;
+}
+
+.site-header__name {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink-primary);
+}
+
+.site-header__nav {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  align-self: stretch;
+}
+
+.site-header__tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 14px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--ink-secondary);
+  transition: color var(--transition-fast);
+}
+
+.site-header__tab:hover {
+  color: var(--ink-primary);
+}
+
+.site-header__tab--active {
+  color: var(--blue-primary);
+  font-weight: 600;
+}
+
+.site-header__tab--active::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 0;
+  height: 2px;
+  background-color: var(--blue-primary);
+}
+
+.site-header__account {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.site-header__user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.site-header__user-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink-primary);
+}
+
+.site-header__role {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--blue-primary);
+  background-color: var(--bg-blue-tint);
+  padding: 2px 8px;
+  border-radius: var(--radius-tag);
+}
+
+.site-header__logout {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink-secondary);
+  padding: 7px 14px;
+  border: 1px solid var(--border-panel);
+  border-radius: var(--radius-control);
+  transition: border-color var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.site-header__logout:hover {
+  border-color: var(--border-strong);
+  color: var(--ink-primary);
+  background-color: var(--bg-rinse);
+}
+
+@media (max-width: 720px) {
+  .site-header__inner {
+    flex-wrap: wrap;
+    padding: 12px 16px 0;
+    gap: 10px;
+  }
+
+  .site-header__nav {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+    border-top: 1px solid var(--border-panel);
+    padding-top: 2px;
+  }
+
+  .site-header__tab {
+    padding: 12px 12px;
+    white-space: nowrap;
+  }
+
+  .site-header__user-name {
+    display: none;
+  }
+}

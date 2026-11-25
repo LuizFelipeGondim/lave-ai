@@ -1,0 +1,98 @@
+:root {
+  --bg-canvas: #FFFFFF;
+  --bg-rinse: #F4F8FC;
+  --bg-blue-tint: #EBF2FE;
+  --border-panel: #D9E4F0;
+  --border-strong: #B8CBE0;
+
+  --ink-primary: #0F223D;
+  --ink-secondary: #526782;
+  --ink-muted: #7C90A8;
+
+  --blue-primary: #1463F3;
+  --blue-hover: #0F52CE;
+  --blue-dark: #0D3F9E;
+
+  --status-free: #0E9F6E;
+  --status-free-bg: #ECFDF5;
+  --status-use: #1463F3;
+  --status-use-bg: #EBF2FE;
+  --status-warn: #D97706;
+  --status-warn-bg: #FFFBEB;
+  --status-danger: #DC2626;
+  --status-danger-bg: #FEF2F2;
+
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+
+  --radius-panel: 14px;
+  --radius-control: 8px;
+  --radius-tag: 6px;
+  --radius-pill: 999px;
+
+  --focus-ring: 0 0 0 3px rgba(20, 99, 243, 0.22);
+
+  --transition-fast: 140ms ease;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-canvas);
+  color: var(--ink-primary);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--blue-primary);
+  outline-offset: 2px;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

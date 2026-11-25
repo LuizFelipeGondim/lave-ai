@@ -1,0 +1,12 @@
+{
+  "user": {
+    "name": "Maria Souza",
+    "email": "maria@laveai.com",
+    "password": "senha123"
+  },
+  "admin": {
+    "name": "Admin Lavanderia",
+    "email": "admin@laveai.com",
+    "password": "admin123"
+  }
+}
