@@ -33,9 +33,9 @@ jobs:
         working-directory: ./backend
         run: npm ci
 
-      - name: Executar Testes de Unidade (Backend)
+      - name: Executar Testes e Cobertura (Backend)
         working-directory: ./backend
-        run: npm test
+        run: npm run test:coverage
 
       - name: Instalar dependências (Frontend)
         working-directory: ./frontend
