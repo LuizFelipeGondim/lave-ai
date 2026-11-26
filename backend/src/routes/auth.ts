@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { db } from "../database.js";
+import { authenticate } from "../middlewares/auth.js";
 
 export async function authRoutes(app: FastifyInstance) {
   // ----------------------------------------------------------------
@@ -65,10 +66,10 @@ export async function authRoutes(app: FastifyInstance) {
       return reply.status(401).send({ message: "E-mail ou senha incorretos." });
     }
 
-    // Cookie de sessao: sessionId = user.id
     reply.setCookie("sessionId", user.id, {
       path: "/",
       httpOnly: true,
+      maxAge: 60 * 60 * 24 * 7,
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       secure: process.env.NODE_ENV === "production",
     });
@@ -79,11 +80,19 @@ export async function authRoutes(app: FastifyInstance) {
     });
   });
 
-  // ----------------------------------------------------------------
-  // POST /auth/logout — Encerra sessao
-  // ----------------------------------------------------------------
+  app.get("/auth/me", { preHandler: [authenticate] }, async (request, reply) => {
+    const user = (request as any).user;
+    return reply.status(200).send({
+      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+    });
+  });
+
   app.post("/auth/logout", async (request, reply) => {
-    reply.clearCookie("sessionId", { path: "/" });
+    reply.clearCookie("sessionId", {
+      path: "/",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
     return reply.status(200).send({ message: "Logout realizado com sucesso." });
   });
 }

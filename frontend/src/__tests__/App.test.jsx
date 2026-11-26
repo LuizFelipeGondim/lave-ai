@@ -1,18 +1,34 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { http, HttpResponse } from 'msw'
 import { describe, it, expect } from 'vitest'
 import App from '../App'
+import { server, mockUsers } from '../test/server'
+import { API_URL } from '../config/api'
 
 async function signIn(user, email, password) {
-  await user.type(screen.getByLabelText(/e-mail/i), email)
+  await user.type(await screen.findByLabelText(/e-mail/i), email)
   await user.type(screen.getByLabelText(/senha/i), password)
   await user.click(screen.getByRole('button', { name: /^entrar$/i }))
 }
 
 describe('App — fluxo de autenticação e navegação', () => {
-  it('exibe a tela de login inicialmente', () => {
+  it('exibe a tela de login inicialmente quando não há sessão ativa', async () => {
     render(<App />)
-    expect(screen.getByRole('heading', { name: /acesse sua conta/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /acesse sua conta/i })).toBeInTheDocument()
+  })
+
+  it('mantém o usuário logado ao recarregar quando /auth/me retorna sessão ativa', async () => {
+    server.use(
+      http.get(`${API_URL}/auth/me`, () =>
+        HttpResponse.json({ user: mockUsers.user })
+      )
+    )
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: /painel da lavanderia/i })).toBeInTheDocument()
+    expect(screen.getByText('Maria Souza')).toBeInTheDocument()
   })
 
   it('permite que usuário comum acesse Painel, Agendar e Histórico sem ver Máquinas', async () => {

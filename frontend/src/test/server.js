@@ -171,6 +171,10 @@ export const handlers = [
     )
   }),
 
+  http.get(`${API_URL}/auth/me`, () => {
+    return HttpResponse.json({ message: 'Nao autenticado.' }, { status: 401 })
+  }),
+
   http.post(`${API_URL}/auth/logout`, () => {
     return HttpResponse.json({ message: 'Logout realizado com sucesso.' })
   }),

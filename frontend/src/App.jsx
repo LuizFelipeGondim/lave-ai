@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { API_URL } from './config/api'
 import Header from './components/Header'
 import LoginPage from './pages/LoginPage'
@@ -10,8 +10,39 @@ import './App.css'
 
 export default function App() {
   const [user, setUser] = useState(null)
+  const [checkingSession, setCheckingSession] = useState(true)
   const [page, setPage] = useState('overview')
   const [selectedMachineId, setSelectedMachineId] = useState(null)
+
+  useEffect(() => {
+    let active = true
+
+    async function restoreSession() {
+      try {
+        const res = await fetch(`${API_URL}/auth/me`, {
+          credentials: 'include',
+        })
+        if (res.ok && active) {
+          const data = await res.json()
+          if (data?.user) {
+            setUser(data.user)
+          }
+        }
+      } catch {
+        setUser(null)
+      } finally {
+        if (active) {
+          setCheckingSession(false)
+        }
+      }
+    }
+
+    restoreSession()
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   const handleLogin = (loggedUser) => {
     setUser(loggedUser)
@@ -44,6 +75,10 @@ export default function App() {
       setPage('overview')
       setSelectedMachineId(null)
     }
+  }
+
+  if (checkingSession) {
+    return null
   }
 
   if (!user) {

@@ -147,3 +147,32 @@ describe("POST /auth/logout", () => {
     expect(res.body.message).toBe("Logout realizado com sucesso.");
   });
 });
+
+describe("GET /auth/me", () => {
+  it("deve retornar 401 sem cookie de sessao", async () => {
+    const res = await request.get("/auth/me");
+    expect(res.status).toBe(401);
+  });
+
+  it("deve retornar dados do usuario autenticado com cookie valido (200)", async () => {
+    await db("users").insert({
+      id: randomUUID(),
+      name: "Maria Souza",
+      email: "maria@laveai.com",
+      password_hash: await bcrypt.hash("senha123", 10),
+      role: "user",
+    });
+
+    const loginRes = await request.post("/auth/login").send({
+      email: "maria@laveai.com",
+      password: "senha123",
+    });
+
+    const cookies = loginRes.headers["set-cookie"] as unknown as string[];
+    const res = await request.get("/auth/me").set("Cookie", cookies);
+
+    expect(res.status).toBe(200);
+    expect(res.body.user.email).toBe("maria@laveai.com");
+    expect(res.body.user.role).toBe("user");
+  });
+});
