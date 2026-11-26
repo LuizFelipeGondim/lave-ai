@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
+    "start": "npm run knex -- migrate:latest && npm run knex -- seed:run && tsx src/server.ts",
     "knex": "node --import tsx ./node_modules/knex/bin/cli.js",
     "test": "vitest run",
     "test:watch": "vitest",
