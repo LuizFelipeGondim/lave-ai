@@ -11,7 +11,7 @@ Sistema web para agendamento e acompanhamento de uso de lavadoras e secadoras em
 
 O Lave aí substitui o controle em papel de lavanderias compartilhadas, como os modelos de moradias universitárias, por uma fila digital com acompanhamento em tempo real. A aplicação atende dois perfis de usuário: usuários comuns, que criam a própria conta no sistema, e administradores, cadastrados via seed inicial no banco de dados.
 
-# Acesso
+## Acesso
 - Link: https://lave-ai.vercel.app
 - Login: admin@laveai.com
 - Senha: admin123 
